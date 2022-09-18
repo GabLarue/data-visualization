@@ -35,6 +35,10 @@ func uploadFile(c echo.Context) error {
 	return c.HTML(http.StatusOK, fmt.Sprintf("<p>File %s uploaded successfully.</p>", f.Filename))
 }
 
+func getFiles() ([]os.File, error) {
+	return nil, nil
+}
+
 func main() {
 	e := echo.New()
 
