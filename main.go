@@ -7,11 +7,10 @@ import (
 	"os"
 
 	"github.com/labstack/echo"
+	"github.com/labstack/echo/middleware"
 )
 
 func uploadFile(c echo.Context) error {
-	c.Response().Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
-
 	f, err := c.FormFile("file")
 	if err != nil {
 		return err
@@ -38,6 +37,10 @@ func uploadFile(c echo.Context) error {
 
 func main() {
 	e := echo.New()
+
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: []string{"http://localhost:3000"},
+	}))
 
 	e.POST("/upload", uploadFile)
 
