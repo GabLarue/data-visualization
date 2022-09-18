@@ -2,35 +2,44 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 
-	"github.com/go-gota/gota/dataframe"
+	"github.com/labstack/echo"
 )
 
-func readData(s string) (*os.File, error) {
-	f, err := os.Open(s)
+func uploadFile(c echo.Context) error {
+	c.Response().Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+
+	f, err := c.FormFile("file")
 	if err != nil {
-		return nil, fmt.Errorf("Wasn't able to read data file")
+		return err
 	}
 
-	return f, nil
+	src, err := f.Open()
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+
+	dst, err := os.Create(f.Filename)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+
+	if _, err = io.Copy(dst, src); err != nil {
+		return err
+	}
+
+	return c.HTML(http.StatusOK, fmt.Sprintf("<p>File %s uploaded successfully.</p>", f.Filename))
 }
-
-func dropColumns(df dataframe.DataFrame) {
-	newdf := df.Drop([]int{0, 1, 2, 3, 4})
-
-	fmt.Println(newdf)
-}
-
-//INPUT CSV
-//RETURN AVAILABLE COLUMN TO COMPARE
-//INPUT COLUMN TO COMPARE
-//RETURN DATAFRAM COMPARING THESE COLUMN
 
 func main() {
-	f, _ := readData("./data/data.csv")
+	e := echo.New()
 
-	df := dataframe.ReadCSV(f)
+	e.POST("/upload", uploadFile)
 
-	dropColumns(df)
+	e.Logger.Fatal(e.Start(":8080"))
 }
