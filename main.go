@@ -64,5 +64,5 @@ func main() {
 	e.POST("/upload", uploadFile)
 	e.GET("/files", getAllFiles)
 
-	e.Logger.Fatal(e.Start(":4000"))
+	e.Logger.Fatal(e.Start(":8080"))
 }
