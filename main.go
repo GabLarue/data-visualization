@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
+	_ "github.com/lib/pq"
 )
 
 func check(err error) {
@@ -32,7 +34,7 @@ func uploadFile(c echo.Context) error {
 	_, err = io.Copy(dst, src)
 	check(err)
 
-	return c.HTML(http.StatusOK, fmt.Sprintf("<p>File %s uploaded successfully.</p>", f.Filename))
+	return c.JSON(http.StatusOK, f.Filename)
 }
 
 // func getFileByID(c echo.Context) error {
@@ -54,8 +56,39 @@ func getAllFiles(c echo.Context) error {
 	return c.JSON(http.StatusOK, filesNames)
 }
 
+const (
+	host     = "localhost"
+	port     = 5432
+	user     = "postgres"
+	password = "postgres"
+	dbname   = "postgres"
+)
+
 func main() {
+	//to start db container => docker-compose -f docker-compose-postgres.yml up
 	e := echo.New()
+
+	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
+		"password=%s dbname=%s sslmode=disable",
+		host, port, user, password, dbname)
+
+	db, err := sql.Open("postgres", psqlInfo)
+	check(err)
+	defer db.Close()
+
+	db.Ping()
+	fmt.Println("Successfully ping db")
+
+	row := db.QueryRow("SELECT (file_url) from files where id = 1;")
+
+	fmt.Println(row)
+
+	sqlStmt := `
+	INSERT INTO files (file_url)
+	VALUES ('www.go.com')`
+
+	_, err = db.Exec(sqlStmt)
+	check(err)
 
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"http://localhost:3000"},

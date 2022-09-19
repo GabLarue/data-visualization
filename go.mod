@@ -17,7 +17,9 @@ require (
 )
 
 require (
+	github.com/jmoiron/sqlx v1.3.5
 	github.com/labstack/echo v3.3.10+incompatible
+	github.com/lib/pq v1.10.7
 	golang.org/x/net v0.0.0-20210423184538-5f58ad60dda6 // indirect
 	gonum.org/v1/gonum v0.9.1 // indirect
 )
