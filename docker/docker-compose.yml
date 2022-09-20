@@ -11,6 +11,18 @@ services:
     volumes: 
       - db:/var/lib/postgresql/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  localstack:
+    image: localstack/localstack:latest
+    network_mode: bridge
+    environment:
+      - SERVICES=s3
+      - DATA_DIR=/tmp/localstack/data
+    ports:
+      - 4566:4566
+    volumes:
+      - "/tmp/localstack:/tmp/localstack"
+
 volumes:
   db:
     driver: local
