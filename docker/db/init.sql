@@ -1,4 +1,1 @@
-CREATE TABLE files (
-    id SERIAL,
-    file_url VARCHAR NOT NULL
-);
+CREATE TABLE IF NOT EXISTS files (id SERIAL, file_url VARCHAR NOT NULL);
