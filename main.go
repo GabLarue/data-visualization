@@ -3,11 +3,15 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
-	"os"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 	_ "github.com/lib/pq"
@@ -20,21 +24,41 @@ func check(err error) {
 }
 
 func uploadFile(c echo.Context) error {
-	f, err := c.FormFile("file")
+	nf, err := c.FormFile("file")
 	check(err)
 
-	src, err := f.Open()
-	check(err)
-	defer src.Close()
+	// Initialize a session
+	sess, err := session.NewSession(&aws.Config{
+		Region:           aws.String("us-east-1"),
+		Credentials:      credentials.NewStaticCredentials("test", "test", ""),
+		S3ForcePathStyle: aws.Bool(true),
+		Endpoint:         aws.String("http://localhost:4566"),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to initialize session %v", err)
+	}
 
-	dst, err := os.Create("data/" + f.Filename)
-	check(err)
-	defer dst.Close()
+	// Create an uploader with the session and default options
+	uploader := s3manager.NewUploader(sess)
 
-	_, err = io.Copy(dst, src)
-	check(err)
+	f, err := nf.Open()
+	if err != nil {
+		return fmt.Errorf("failed to open file %q, %v", nf.Filename, err)
+	}
 
-	return c.JSON(http.StatusOK, f.Filename)
+	println(f)
+
+	// // Upload the file to S3.
+	result, err := uploader.Upload(&s3manager.UploadInput{
+		Bucket: aws.String("bucket"),
+		Key:    aws.String(nf.Filename),
+		Body:   f,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to upload file to %s, %v", result.Location, err)
+	}
+
+	return c.JSON(http.StatusOK, result)
 }
 
 // func getFileByID(c echo.Context) error {
@@ -51,6 +75,29 @@ func getAllFiles(c echo.Context) error {
 
 	for _, f := range files {
 		filesNames = append(filesNames, f.Name())
+	}
+
+	// Initialize a session
+	sess, _ := session.NewSession(&aws.Config{
+		Region:           aws.String("us-east-1"),
+		Credentials:      credentials.NewStaticCredentials("test", "test", ""),
+		S3ForcePathStyle: aws.Bool(true),
+		Endpoint:         aws.String("http://localhost:4566"),
+	})
+
+	// Create S3 service client
+	client := s3.New(sess)
+
+	output, err := client.ListObjectsV2(&s3.ListObjectsV2Input{
+		Bucket: aws.String("bucket"),
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Println("first page results:")
+	for _, object := range output.Contents {
+		log.Printf("key=%s size=%d", object.Key, object.Size)
 	}
 
 	return c.JSON(http.StatusOK, filesNames)
