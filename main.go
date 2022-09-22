@@ -45,25 +45,31 @@ func uploadFile(c echo.Context) error {
 	return c.JSON(http.StatusOK, nf.Filename)
 }
 
+type FilesResponse struct {
+	Name string `db:"file_name" json:"name"`
+	Key  string `db:"s3_key" json:"key"`
+}
+
 func getAllFiles(c echo.Context) error {
 	var err error
 	var stmt *sql.Stmt
 
-	if stmt, err = DB.Prepare("SELECT file_name FROM files"); err != nil {
+	if stmt, err = DB.Prepare("SELECT file_name, s3_key FROM files"); err != nil {
 		return fmt.Errorf("failed to prepare statement for file upload query, %v", err)
 	}
 	defer stmt.Close()
 
 	var results *sql.Rows
 	results, err = stmt.Query()
-	var response []string
+	var response []FilesResponse
 
 	for results.Next() {
 		var file_name string
-		if err := results.Scan(&file_name); err != nil {
+		var s3_key string
+		if err := results.Scan(&file_name, &s3_key); err != nil {
 			log.Fatal(err)
 		}
-		response = append(response, file_name)
+		response = append(response, FilesResponse{Name: file_name, Key: s3_key})
 	}
 
 	return c.JSON(http.StatusOK, response)
