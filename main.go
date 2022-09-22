@@ -1,24 +1,19 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"mime/multipart"
 	"net/http"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/google/uuid"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 	_ "github.com/lib/pq"
 )
-
-func check(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
 
 func uploadFile(c echo.Context) error {
 	var nf *multipart.FileHeader
@@ -34,41 +29,51 @@ func uploadFile(c echo.Context) error {
 	}
 
 	var result *s3.PutObjectOutput
+	key := uuid.New()
 	if result, err = S3.PutObject(&s3.PutObjectInput{
 		Bucket: aws.String("bucket"),
-		Key:    aws.String(nf.Filename),
+		Key:    aws.String(key.String()),
 		Body:   f,
 	}); err != nil {
 		return fmt.Errorf("failed to upload file to %s, %v", result, err)
 	}
 
-	// ADD FILE NAME + BUCKET KEY TO DB
+	if _, err = DB.Exec("INSERT INTO files(file_name, s3_key) VALUES($1,$2)", nf.Filename, key.String()); err != nil {
+		return fmt.Errorf("failed to execute file upload query, %v", err)
+	}
 
-	return c.JSON(http.StatusOK, result)
+	return c.JSON(http.StatusOK, nf.Filename)
 }
 
 func getAllFiles(c echo.Context) error {
-	files, _ := ioutil.ReadDir("./data")
+	var err error
+	var stmt *sql.Stmt
 
-	filesNames := []string{}
+	if stmt, err = DB.Prepare("SELECT file_name FROM files"); err != nil {
+		return fmt.Errorf("failed to prepare statement for file upload query, %v", err)
+	}
+	defer stmt.Close()
 
-	for _, f := range files {
-		filesNames = append(filesNames, f.Name())
+	var results *sql.Rows
+	results, err = stmt.Query()
+	var response []string
+
+	for results.Next() {
+		var file_name string
+		if err := results.Scan(&file_name); err != nil {
+			log.Fatal(err)
+		}
+		response = append(response, file_name)
 	}
 
-	output, err := S3.ListObjectsV2(&s3.ListObjectsV2Input{
-		Bucket: aws.String("bucket"),
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
+	return c.JSON(http.StatusOK, response)
+}
 
-	log.Println("first page results:")
-	for _, object := range output.Contents {
-		log.Printf("key=%p size=%d", object.Key, object.Size)
-	}
+func getFileByID(c echo.Context) error {
+	var id string
+	id = c.Param("id")
 
-	return c.JSON(http.StatusOK, filesNames)
+	return c.JSON(http.StatusOK, id)
 }
 
 func main() {
@@ -76,23 +81,13 @@ func main() {
 	initDB()
 	e := echo.New()
 
-	row := DB.QueryRow("SELECT (file_url) from files where id = 1;")
-
-	fmt.Println(row)
-
-	sqlStmt := `
-	INSERT INTO files (file_url)
-	VALUES ('www.go.com')`
-
-	_, err := DB.Exec(sqlStmt)
-	check(err)
-
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"http://localhost:3000"},
 	}))
 
 	e.POST("/upload", uploadFile)
 	e.GET("/files", getAllFiles)
+	e.GET("/files/:id", getFileByID)
 
 	e.Logger.Fatal(e.Start(":8080"))
 }
