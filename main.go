@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
 	"fmt"
+	"io"
 	"log"
 	"mime/multipart"
 	"net/http"
@@ -76,10 +78,32 @@ func getAllFiles(c echo.Context) error {
 }
 
 func getFileByID(c echo.Context) error {
+	var err error
 	var id string
 	id = c.Param("id")
 
-	return c.JSON(http.StatusOK, id)
+	var result *s3.GetObjectOutput
+	if result, err = S3.GetObject(&s3.GetObjectInput{
+		Bucket: aws.String("bucket"),
+		Key:    aws.String(id),
+	}); err != nil {
+		return fmt.Errorf("failed to upload file to %s, %v", result, err)
+	}
+
+	size := result.ContentLength
+	buffer := make([]byte, *size)
+
+	var bbuffer bytes.Buffer
+	for true {
+		num, rerr := result.Body.Read(buffer)
+		if num > 0 {
+			bbuffer.Write(buffer[:num])
+		} else if rerr == io.EOF || rerr != nil {
+			break
+		}
+	}
+
+	return c.JSON(http.StatusOK, bbuffer.String())
 }
 
 func main() {
