@@ -1,53 +1,37 @@
 import React, { useEffect, useState } from 'react';
 import './App.css';
-import axios from 'axios'
 import { Dialog } from '@headlessui/react';
+import Api from './api/api';
 
 type SavedFile = {
   name: string,
   key: string
 }
 
-const http = axios.create({
-  baseURL: '//localhost:8080',
-  headers: {
-    "Content-Type": "multipart/form-data",
-  }
-});
-
 function App() {
   const [savedFiles, setSavedFiles] = useState<SavedFile[]>()
   const [fileToUpload, setFileToUpload] = useState<File | null>(null)
   const [selectedFile, setSelectedFile] = useState<string>("")
   const [isFileOpen, setIsFileOpen] = useState<boolean>(false)
+  const api = new Api
 
   useEffect(() => {
-    http.get('/files')
-      .then((response) => {
-        setSavedFiles(response.data)
-      })
-      .catch((error) => {
-        console.log(error);
-      })
+    (async() => {
+      const files = await api.getAllFiles()
+      setSavedFiles(files)
+    })()
   })
 
-  const handleUpload = (e: React.FormEvent) => {
+  const handleUpload = async() => {
     if (fileToUpload === null) {
       alert("No file selected for upload!")
     } else {
       var formData = new FormData()
       formData.append('file', fileToUpload)
 
-      http.post('/upload', formData)
-        .then((response) => {
-          console.log(`File ${response.data} was uploaded successfully!`)
-        })
-        .catch((error) => {
-          console.log(error);
-        })
+      await api.uploadFile(formData)
+      setFileToUpload(null)
     }
-
-    setFileToUpload(null)
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -56,15 +40,10 @@ function App() {
     }
   }
 
-  const openFile = (id: string) => {
-    http.get(`/files/${id}`)
-      .then((response) => {
-        setSelectedFile(response.data)
-        setIsFileOpen(true)
-      })
-      .catch((error) => {
-        console.log(error);
-      })
+  const openFile = async(id: string) => {
+    const file = await api.getFileById(id)
+    setSelectedFile(file)
+    setIsFileOpen(true)
   }
 
   return (
@@ -103,7 +82,7 @@ function App() {
             </div>
           }
         </div>
-        <form id={"form"} className="flex flex-col gap-2 w-1/2" onSubmit={e => handleUpload(e)}>
+        <form id={"form"} className="flex flex-col gap-2 w-1/2" onSubmit={handleUpload}>
           <label className="text-white flex items-center justify-center rounded px-4 py-2 bg-[#4E2ECFE6] hover:bg-[#4E2ECF] cursor-pointer">
             <span>Select CSV to upload</span>
             <input type='file' accept='.csv' name='file' className="hidden" onChange={e => handleFileChange(e)}></input>
