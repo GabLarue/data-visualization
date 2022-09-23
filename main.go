@@ -22,13 +22,11 @@ func uploadFile(c echo.Context) error {
 	var err error
 
 	if nf, err = c.FormFile("file"); err != nil {
-		panic(err)
 		return fmt.Errorf("failed to return the multipart form file for the provider name")
 	}
 
 	var f multipart.File
 	if f, err = nf.Open(); err != nil {
-		panic(err)
 		return fmt.Errorf("failed to open file %q, %v", nf.Filename, err)
 	}
 

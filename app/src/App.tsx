@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import './App.css';
 import axios from 'axios'
+import { Dialog } from '@headlessui/react';
 
 type SavedFile = {
   name: string,
@@ -18,6 +19,7 @@ function App() {
   const [savedFiles, setSavedFiles] = useState<SavedFile[]>()
   const [fileToUpload, setFileToUpload] = useState<File | null>(null)
   const [selectedFile, setSelectedFile] = useState<string>("")
+  const [isFileOpen, setIsFileOpen] = useState<boolean>(false)
 
   useEffect(() => {
     http.get('/files')
@@ -30,8 +32,6 @@ function App() {
   })
 
   const handleUpload = (e: React.FormEvent) => {
-    e.preventDefault()
-
     if (fileToUpload === null) {
       alert("No file selected for upload!")
     } else {
@@ -46,6 +46,8 @@ function App() {
           console.log(error);
         })
     }
+
+    setFileToUpload(null)
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -54,8 +56,29 @@ function App() {
     }
   }
 
+  const openFile = (id: string) => {
+    http.get(`/files/${id}`)
+      .then((response) => {
+        setSelectedFile(response.data)
+        setIsFileOpen(true)
+      })
+      .catch((error) => {
+        console.log(error);
+      })
+  }
+
   return (
     <div className="flex w-screen h-screen">
+      <Dialog open={isFileOpen} onClose={() => setIsFileOpen(false)} className="absolute w-full h-full inset-0">
+        <Dialog.Panel className="w-full h-full p-10 overflow-y-auto">
+          <div className="h-full relative flex flex-col p-10 overflow-y-auto bg-white rounded-lg shadow-lg">
+            <div className="break-all">
+              <span>{selectedFile}</span>
+            </div>
+            <button className="text-white w-[fit-content] flex items-center justify-center rounded px-4 py-2 bg-[#4E2ECFE6] hover:bg-[#4E2ECF] cursor-pointer sticky bottom-10 right-10" onClick={() => setIsFileOpen(false)}>Close</button>
+          </div>
+        </Dialog.Panel>
+      </Dialog>
       <div className="flex flex-col justify-center items-center text-3xl gap-4 p-4 text-white w-1/2 bg-gradient-to-b from-[#1D1D42] to-[#4E2ECF]">
         <span className="text-white">
           <span className="text-[#FF7425] font-semibold">Visualize </span>
@@ -68,12 +91,11 @@ function App() {
       <div className="flex flex-col gap-4 w-1/2 bg-white justify-center items-center">
         <div className="w-1/2 flex flex-col gap-2">
           {savedFiles ? savedFiles.map(file => {
-            return <div className="text-grey flex justify-between hover:text-white rounded px-4 py-2 bg-[#0182FF33] hover:bg-[#0182FFB3] cursor-pointer" key={file.key}>
+            return <div onClick={() => openFile(file.key)} className="text-grey flex justify-between hover:text-white rounded px-4 py-2 bg-[#0182FF33] hover:bg-[#0182FFB3] cursor-pointer" key={file.key}>
               <div className="flex truncate gap-2">
                 <span className="material-symbols-outlined">folder</span>
                 <span className="truncate">{file.name}</span>
               </div>
-              <span className="material-symbols-outlined">more_vert</span>
             </div>
           }) :
             <div className="text-white rounded px-4 py-2 bg-[#00499033]">
