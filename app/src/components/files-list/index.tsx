@@ -7,7 +7,7 @@ type FilesListProps = {
 }
 
 const FilesList = ({ openFile, files }: FilesListProps) => {
-    if (files.length === 0) {
+    if (!files) {
         return (
             <NoSavedFileMessage />
         )
