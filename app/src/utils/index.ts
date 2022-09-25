@@ -2,15 +2,13 @@ const checkFileLines = (lines: string[]): string[] => {
     var spliceToIndex = -1;
 
     for (var i = 1; i < lines.length; i++) {
-        var previous = i - 1
-
-        if (lines[i].split(',').length !== lines[previous].split(',').length) {
-            spliceToIndex = previous
+        if (lines[i].split(',').length !== lines[i - 1].split(',').length) {
+            spliceToIndex = i
         }
     }
 
     if (spliceToIndex !== -1) {
-        lines.splice(0, spliceToIndex + 1)
+        lines.splice(0, spliceToIndex)
     }
 
     return lines
